@@ -10,6 +10,7 @@ mkShell {
     jq
     dasel
     github-cli
+    postgresql_16
 
     # go
     go
@@ -18,6 +19,10 @@ mkShell {
     gopls
     delve
     golangci-lint
+    go-migrate
+
+    #open api
+    oapi-codegen
 
     # linting tools
     typos

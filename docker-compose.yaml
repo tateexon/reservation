@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: youruser
+      POSTGRES_PASSWORD: yourpassword
+      POSTGRES_DB: yourdb
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./migrations:/docker-entrypoint-initdb.d
+  reservation:
+    image: tateexon/reservation:latest
+    environment:
+      POSTGRES_USER: youruser
+      POSTGRES_PASSWORD: yourpassword
+      POSTGRES_DB: yourdb
+      POSTGRES_URL: db:5432
+    ports:
+      - '8080:8080'
+    restart: on-failure  # Restart only if it fails
+  swagger:
+    image: swaggerapi/swagger-ui
+    environment:
+      SWAGGER_JSON: /openapi.yaml
+    ports:
+      - '8081:8080'
+    volumes:
+      - ./schema/openapi.yaml:/openapi.yaml

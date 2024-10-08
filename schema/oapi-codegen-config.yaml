@@ -1,0 +1,6 @@
+# yaml-language-server: ...
+package: schema
+generate:
+  gin-server: true
+  models: true
+output: ./schema/gen.go

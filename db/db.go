@@ -125,7 +125,7 @@ func (db *Database) GetAppointmentStartTime(availabilityID *types.UUID) (time.Ti
 	return startTime, err
 }
 
-func (db *Database) IsSlotAvailable(providerID *types.UUID, startTime *time.Time) (bool, error) {
+func (db *Database) isSlotAvailable(providerID *types.UUID, startTime *time.Time) (bool, error) {
 	var count int
 	err := db.Conn.QueryRow(`
         SELECT COUNT(*)
@@ -154,7 +154,7 @@ var (
 
 func (db *Database) ReserveAppointment(clientID, providerID *types.UUID, startTime *time.Time) (*schema.Appointment, error) {
 	// First, check that the slot is still available
-	available, err := db.IsSlotAvailable(providerID, startTime)
+	available, err := db.isSlotAvailable(providerID, startTime)
 	if err != nil {
 		return nil, err
 	}
@@ -223,8 +223,8 @@ func (db *Database) AddAvailability(providerID types.UUID, slots []time.Time) er
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`
-	INSERT INTO availability (id, provider_id, start_time, end_time, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, NOW(), NOW())
+	INSERT INTO availability (provider_id, start_time, end_time, created_at, updated_at)
+	VALUES ($1, $2, $3, NOW(), NOW())
 	ON CONFLICT (provider_id, start_time) DO NOTHING
 	`)
 	if err != nil {
@@ -234,8 +234,7 @@ func (db *Database) AddAvailability(providerID types.UUID, slots []time.Time) er
 
 	for _, startTime := range slots {
 		endTime := startTime.Add(GetAvailabilityInterval())
-		availabilityID := uuid.New()
-		_, err := stmt.Exec(availabilityID, providerID.String(), startTime, endTime)
+		_, err := stmt.Exec(providerID.String(), startTime, endTime)
 		if err != nil {
 			return err
 		}
@@ -263,18 +262,20 @@ func (db *Database) providerExists(providerID types.UUID) error {
 }
 
 func (db *Database) CreateUser(name, email, role string) (*schema.User, error) {
-	userID := uuid.New()
-	_, err := db.Conn.Exec(`
-        INSERT INTO users (id, name, email, role, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW())
-    `, userID, name, email, role)
+	var userID uuid.UUID
+
+	err := db.Conn.QueryRow(`
+        INSERT INTO users (name, email, role, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
+		RETURNING id
+    `, name, email, role).Scan(&userID)
 	if err != nil {
 		return nil, err
 	}
 
 	userRole := schema.UserRole(role)
 	user := &schema.User{
-		Id:    (*types.UUID)(&userID),
+		Id:    &userID,
 		Name:  utils.Ptr(name),
 		Email: utils.Ptr(email),
 		Role:  &userRole,

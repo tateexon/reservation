@@ -71,7 +71,7 @@ func TestIsSlotAvailable(t *testing.T) {
 
 	addTestAvailability(t, dbInstance, providerID, slots)
 
-	available, err := dbInstance.IsSlotAvailable(providerID, &startTime)
+	available, err := dbInstance.isSlotAvailable(providerID, &startTime)
 	require.NoError(t, err)
 	require.True(t, available)
 
@@ -81,7 +81,7 @@ func TestIsSlotAvailable(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check availability again
-	available, err = dbInstance.IsSlotAvailable(providerID, &startTime)
+	available, err = dbInstance.isSlotAvailable(providerID, &startTime)
 	require.NoError(t, err)
 	require.False(t, available)
 }
@@ -191,7 +191,7 @@ func TestReservationExpiryLogic(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check if the slot is now available
-	available, err := dbInstance.IsSlotAvailable(providerID, &startTime)
+	available, err := dbInstance.isSlotAvailable(providerID, &startTime)
 	require.NoError(t, err)
 	require.True(t, available, "Slot should be available after reservation has expired")
 

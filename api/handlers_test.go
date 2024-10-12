@@ -58,13 +58,13 @@ func setupTestServer(dbInstance *db.Database) *gin.Engine {
 }
 
 func createTestProvider(t *testing.T, dbInstance *db.Database) *types.UUID {
-	user, err := dbInstance.CreateUser("Test Provider", fmt.Sprintf("provider-%s@example.com", uuid.NewString()), string(schema.UserRoleProvider))
+	user, err := dbInstance.CreateProvider("Test Provider")
 	require.NoError(t, err)
 	return user.Id
 }
 
 func createTestClient(t *testing.T, dbInstance *db.Database) *types.UUID {
-	user, err := dbInstance.CreateUser("Test Client", fmt.Sprintf("client-%s@example.com", uuid.NewString()), string(schema.UserRoleClient))
+	user, err := dbInstance.CreateClient("Test Client")
 	require.NoError(t, err)
 	return user.Id
 }

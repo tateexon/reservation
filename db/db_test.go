@@ -2,11 +2,9 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/oapi-codegen/runtime/types"
 	"github.com/stretchr/testify/require"
 	"github.com/tateexon/reservation/schema"
@@ -37,15 +35,15 @@ func startTestDatabase(t *testing.T) *Database {
 }
 
 func createTestProvider(t *testing.T, dbInstance *Database) *types.UUID {
-	user, err := dbInstance.CreateUser("Test Provider", fmt.Sprintf("provider-%s@example.com", uuid.NewString()), string(schema.UserRoleProvider))
+	user, err := dbInstance.CreateProvider("Test Provider")
 	require.NoError(t, err)
 	return user.Id
 }
 
 func createTestClient(t *testing.T, dbInstance *Database) *types.UUID {
-	user, err := dbInstance.CreateUser("Test Client", fmt.Sprintf("client-%s@example.com", uuid.NewString()), string(schema.UserRoleClient))
+	provider, err := dbInstance.CreateClient("Test Client")
 	require.NoError(t, err)
-	return user.Id
+	return provider.Id
 }
 
 func addTestAvailability(t *testing.T, dbInstance *Database, providerID *types.UUID, slots []time.Time) {

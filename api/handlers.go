@@ -25,7 +25,7 @@ var _ schema.ServerInterface = (*Server)(nil)
 //nolint:revive
 func (s *Server) GetAppointments(c *gin.Context, params schema.GetAppointmentsParams) {
 	// Parse query parameters
-	providerID := params.ProviderId
+	providerID := params.ProviderID
 	date := params.Date
 
 	// Get available appointment slots from the database
@@ -88,10 +88,9 @@ func (s *Server) isReservationAtLeast24HoursInAdvance(startTime *time.Time) bool
 	return time.Until(*startTime) >= 24*time.Hour
 }
 
-//nolint:revive
-func (s *Server) PostAppointmentsAppointmentIdConfirm(c *gin.Context, appointmentId openapi_types.UUID) {
+func (s *Server) PostAppointmentsAppointmentIDConfirm(c *gin.Context, appointmentID openapi_types.UUID) {
 	// Confirm the reservation
-	err := s.DB.ConfirmAppointment(appointmentId)
+	err := s.DB.ConfirmAppointment(appointmentID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found or may have expired"})
@@ -114,7 +113,6 @@ const (
 	postProvidersAvailabilityInvalidTimeRange string = "End time must be later than start time and at least 15 minutes apart"
 )
 
-//nolint:revive
 func (s *Server) PostProvidersAvailability(c *gin.Context) {
 	var availability schema.Availability
 
@@ -129,7 +127,7 @@ func (s *Server) PostProvidersAvailability(c *gin.Context) {
 	endTime := roundDownToNearestInterval(*availability.EndTime).Add(time.Microsecond)
 
 	// Validate time range
-	if endTime.Before(startTime) || !areAtLeastTheIntervalApart(startTime, endTime) {
+	if !areAtLeastTheIntervalApart(startTime, endTime) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": postProvidersAvailabilityInvalidTimeRange})
 		return
 	}
@@ -167,14 +165,14 @@ func areAtLeastTheIntervalApart(t1, t2 time.Time) bool {
 	return diff >= db.GetAvailabilityInterval()
 }
 
-func (s *Server) PostUsers(c *gin.Context) {
-	var req schema.CreateUserRequest
+func (s *Server) PostClients(c *gin.Context) {
+	var req schema.CreateClientRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	user, err := s.DB.CreateUser(req.Name, req.Email, string(req.Role))
+	user, err := s.DB.CreateClient(req.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
@@ -184,9 +182,42 @@ func (s *Server) PostUsers(c *gin.Context) {
 }
 
 //nolint:revive
-func (s *Server) GetUsersUserId(c *gin.Context, userId openapi_types.UUID) {
+func (s *Server) GetClientsClientID(c *gin.Context, clientId openapi_types.UUID) {
 	// Retrieve the user from the database
-	user, err := s.DB.GetUser(userId)
+	user, err := s.DB.GetClient(clientId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+		return
+	}
+
+	// Return the user details
+	c.JSON(http.StatusOK, user)
+}
+
+func (s *Server) PostProviders(c *gin.Context) {
+	var req schema.CreateProviderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	user, err := s.DB.CreateProvider(req.Name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, user)
+}
+
+//nolint:revive
+func (s *Server) GetProvidersProviderID(c *gin.Context, providerId openapi_types.UUID) {
+	// Retrieve the user from the database
+	user, err := s.DB.GetProvider(providerId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})

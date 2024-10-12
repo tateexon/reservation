@@ -1,12 +1,12 @@
 openapi: "3.0.0"
 info:
-  version: 1.0.0
+  version: 2.0.0
   title: Reservation
 servers:
   - url: http://localhost:8080/
 components:
   schemas:
-    User:
+    Client:
       type: object
       properties:
         id:
@@ -14,26 +14,31 @@ components:
           format: uuid
         name:
           type: string
-        email:
-          type: string
-        role:
-          type: string
-          enum: [provider, client]
 
-    CreateUserRequest:
+    CreateClientRequest:
       type: object
       required:
         - name
-        - email
-        - role
       properties:
         name:
           type: string
-        email:
+
+    Provider:
+      type: object
+      properties:
+        id:
           type: string
-        role:
+          format: uuid
+        name:
           type: string
-          enum: [provider, client]
+
+    CreateProviderRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
 
     Availability:
       type: object
@@ -70,27 +75,27 @@ components:
           type: string
           enum: [reserved, confirmed]
 paths:
-  /users:
+  /clients:
     post:
-      summary: Create a new user (client or provider)
+      summary: Create a new client
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateUserRequest'
+              $ref: '#/components/schemas/CreateClientRequest'
       responses:
         '201':
-          description: User created
+          description: Client created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
-  /users/{userId}:
+                $ref: '#/components/schemas/Client'
+  /clients/{clientID}:
     get:
-      summary: Get user details
+      summary: Get client details
       parameters:
-        - name: userId
+        - name: clientID
           in: path
           required: true
           schema:
@@ -98,12 +103,45 @@ paths:
             format: uuid
       responses:
         '200':
-          description: User details
+          description: Client details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/Client'
 
+  /providers:
+    post:
+      summary: Create a new provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProviderRequest'
+      responses:
+        '201':
+          description: Provider created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Provider'
+  /providers/{providerID}:
+    get:
+      summary: Get provider details
+      parameters:
+        - name: providerID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Provider details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Provider'
   /providers/availability:
     post:
       summary: Submit provider availability
@@ -121,7 +159,7 @@ paths:
     get:
       summary: Get available appointment slots
       parameters:
-        - name: providerId
+        - name: providerID
           in: query
           required: false
           schema:
@@ -165,11 +203,11 @@ paths:
         '201':
           description: Appointment reserved
 
-  /appointments/{appointmentId}/confirm:
+  /appointments/{appointmentID}/confirm:
     post:
       summary: Confirm a reservation
       parameters:
-        - name: appointmentId
+        - name: appointmentID
           in: path
           required: true
           schema:

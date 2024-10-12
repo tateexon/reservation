@@ -168,8 +168,8 @@ func (db *Database) ReserveAppointment(clientID, providerID *types.UUID, startTi
 
 	// Let the database generate the ID and return it
 	err = db.Conn.QueryRow(`
-		INSERT INTO appointments (client_id, provider_id, start_time, end_time, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		INSERT INTO appointments (client_id, provider_id, start_time, end_time, status)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
 		`, clientID.String(), providerID.String(), *startTime, endTime, schema.Reserved).Scan(&appointmentID)
 	if err != nil {
@@ -223,8 +223,8 @@ func (db *Database) AddAvailability(providerID types.UUID, slots []time.Time) er
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`
-	INSERT INTO availability (provider_id, start_time, end_time, created_at, updated_at)
-	VALUES ($1, $2, $3, NOW(), NOW())
+	INSERT INTO availability (provider_id, start_time, end_time)
+	VALUES ($1, $2, $3)
 	ON CONFLICT (provider_id, start_time) DO NOTHING
 	`)
 	if err != nil {
@@ -252,59 +252,90 @@ func (db *Database) providerExists(providerID types.UUID) error {
 	var id uuid.UUID
 	err := db.Conn.QueryRow(`
 	SELECT id
-	FROM users
+	FROM providers
 	WHERE id = $1
-	AND role = 'provider'
 `, providerID.String()).Scan(&id)
 
 	// if no rows are returned then we get an error
 	return err
 }
 
-func (db *Database) CreateUser(name, email, role string) (*schema.User, error) {
-	var userID uuid.UUID
+func (db *Database) CreateClient(name string) (*schema.Client, error) {
+	var clientID uuid.UUID
 
 	err := db.Conn.QueryRow(`
-        INSERT INTO users (name, email, role, created_at, updated_at)
-        VALUES ($1, $2, $3, NOW(), NOW())
+        INSERT INTO clients (name)
+        VALUES ($1)
 		RETURNING id
-    `, name, email, role).Scan(&userID)
+    `, name).Scan(&clientID)
 	if err != nil {
 		return nil, err
 	}
-
-	userRole := schema.UserRole(role)
-	user := &schema.User{
-		Id:    &userID,
-		Name:  utils.Ptr(name),
-		Email: utils.Ptr(email),
-		Role:  &userRole,
-	}
-	return user, nil
+	return &schema.Client{
+		Id:   &clientID,
+		Name: utils.Ptr(name),
+	}, err
 }
 
-func (db *Database) GetUser(userID types.UUID) (*schema.User, error) {
-	var user schema.User
-	var id uuid.UUID
-	var name, email, role string
+func (db *Database) CreateProvider(name string) (*schema.Provider, error) {
+	var providerID uuid.UUID
 
 	err := db.Conn.QueryRow(`
-		SELECT id, name, email, role
-		FROM users
+        INSERT INTO providers (name)
+        VALUES ($1)
+		RETURNING id
+    `, name).Scan(&providerID)
+	if err != nil {
+		return nil, err
+	}
+	return &schema.Provider{
+		Id:   &providerID,
+		Name: utils.Ptr(name),
+	}, err
+}
+
+func (db *Database) GetClient(clientID types.UUID) (*schema.Client, error) {
+	var client schema.Client
+	var id uuid.UUID
+	var name string
+
+	err := db.Conn.QueryRow(`
+		SELECT id, name,
+		FROM clients
 		WHERE id = $1
-	`, userID.String()).Scan(&id, &name, &email, &role)
+	`, clientID.String()).Scan(&id, &name)
 
 	if err != nil {
 		return nil, err
 	}
 
-	userRole := schema.UserRole(role)
-	user = schema.User{
-		Id:    (*types.UUID)(&id),
-		Name:  utils.Ptr(name),
-		Email: utils.Ptr(email),
-		Role:  &userRole,
+	client = schema.Client{
+		Id:   (*types.UUID)(&id),
+		Name: utils.Ptr(name),
 	}
 
-	return &user, nil
+	return &client, nil
+}
+
+func (db *Database) GetProvider(providerID types.UUID) (*schema.Provider, error) {
+	var provider schema.Provider
+	var id uuid.UUID
+	var name string
+
+	err := db.Conn.QueryRow(`
+		SELECT id, name,
+		FROM providers
+		WHERE id = $1
+	`, providerID.String()).Scan(&id, &name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	provider = schema.Provider{
+		Id:   (*types.UUID)(&id),
+		Name: utils.Ptr(name),
+	}
+
+	return &provider, nil
 }

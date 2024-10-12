@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"                   // PostgreSQL driver
-	"github.com/oapi-codegen/runtime/types" // Import openapi_types
+	_ "github.com/lib/pq" // PostgreSQL driver
+	"github.com/oapi-codegen/runtime/types"
 	"github.com/tateexon/reservation/schema"
 	"github.com/tateexon/reservation/utils"
 )
@@ -204,12 +204,9 @@ func (db *Database) ConfirmAppointment(appointmentID types.UUID) error {
 
 //nolint:errcheck
 func (db *Database) AddAvailability(providerID types.UUID, slots []time.Time) error {
-	pExists, err := db.providerExists(providerID)
+	err := db.providerExists(providerID)
 	if err != nil {
 		return err
-	}
-	if !pExists {
-		return fmt.Errorf("provider does not exist")
 	}
 
 	tx, err := db.Conn.Begin()
@@ -245,7 +242,7 @@ func (db *Database) AddAvailability(providerID types.UUID, slots []time.Time) er
 	return nil
 }
 
-func (db *Database) providerExists(providerID types.UUID) (bool, error) {
+func (db *Database) providerExists(providerID types.UUID) error {
 	var id uuid.UUID
 	err := db.Conn.QueryRow(`
 	SELECT id
@@ -254,11 +251,8 @@ func (db *Database) providerExists(providerID types.UUID) (bool, error) {
 	AND role = 'provider'
 `, providerID.String()).Scan(&id)
 
-	if err != nil {
-		return false, err
-	}
-
-	return id != uuid.Nil, nil
+	// if no rows are returned then we get an error
+	return err
 }
 
 func (db *Database) CreateUser(name, email, role string) (*schema.User, error) {

@@ -38,9 +38,6 @@ components:
     Availability:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
         provider_id:
           type: string
           format: uuid
@@ -107,16 +104,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
 
-  /providers/{providerId}/availability:
+  /providers/availability:
     post:
       summary: Submit provider availability
-      parameters:
-        - name: providerId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
       requestBody:
         required: true
         content:

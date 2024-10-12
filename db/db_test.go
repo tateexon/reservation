@@ -63,28 +63,6 @@ func addTestAvailability(t *testing.T, dbInstance *Database, providerID *types.U
 func TestStartDatabase(t *testing.T) {
 	t.Parallel()
 	startTestDatabase(t)
-	// time.Sleep(2 * time.Minute)
-}
-
-func TestAddAvailability(t *testing.T) {
-	t.Parallel()
-	dbInstance := startTestDatabase(t)
-	defer dbInstance.Conn.Close()
-
-	providerID := createTestProvider(t, dbInstance)
-	startTime := time.Now().Add(24 * time.Hour).Truncate(time.Minute)
-	slots := utils.GenerateTimeSlots(startTime, startTime.Add(2*time.Hour), GetAvailabilityInterval())
-
-	err := dbInstance.AddAvailability(*providerID, slots)
-	require.NoError(t, err)
-
-	// Verify slots were added
-	var count int
-	err = dbInstance.Conn.QueryRow(`
-        SELECT COUNT(*) FROM availability WHERE provider_id = $1
-    `, providerID.String()).Scan(&count)
-	require.NoError(t, err)
-	require.Equal(t, len(slots), count)
 }
 
 func TestIsSlotAvailable(t *testing.T) {

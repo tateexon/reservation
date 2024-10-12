@@ -25,6 +25,11 @@ const (
 	password = "yourpassword"
 )
 
+type expectedMessage struct {
+	key     string
+	message string
+}
+
 func startTestDatabase(t *testing.T) *db.Database {
 	ctx := context.Background()
 
@@ -76,79 +81,97 @@ func setupTestServer(dbInstance *db.Database) *gin.Engine {
 	return router
 }
 
-func TestPostProvidersProviderIdAvailability(t *testing.T) {
+func TestPostProvidersAvailability(t *testing.T) {
 	t.Parallel()
-	dbInstance := startTestDatabase(t)
-	defer dbInstance.Conn.Close()
+	sTime := time.Now().Add(25 * time.Hour).Truncate(time.Hour)
+	tests := []struct {
+		name       string
+		startTime  time.Time
+		endTime    time.Time
+		providerID *types.UUID
+		statusCode int
+		expected   expectedMessage
+	}{
+		{
+			name:       "HappyPath",
+			startTime:  sTime,
+			endTime:    sTime.Add(2 * time.Hour),
+			statusCode: http.StatusCreated,
+			expected: expectedMessage{
+				key:     "message",
+				message: postProvidersAvailabilityAdded,
+			},
+		},
+		{
+			name:       "InvalidProviderId",
+			startTime:  sTime,
+			endTime:    sTime.Add(2 * time.Hour),
+			providerID: utils.Ptr(uuid.New()),
+			statusCode: http.StatusInternalServerError,
+			expected: expectedMessage{
+				key:     "error",
+				message: postProvidersAvailabilityFailToAdd,
+			},
+		},
+		{
+			name:       "InvalidTimeRange",
+			startTime:  sTime,
+			endTime:    sTime.Add(-2 * time.Hour),
+			statusCode: http.StatusBadRequest,
+			expected: expectedMessage{
+				key:     "error",
+				message: postProvidersAvailabilityInvalidTimeRange,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			dbInstance := startTestDatabase(t)
+			defer dbInstance.Conn.Close()
 
-	router := setupTestServer(dbInstance)
+			router := setupTestServer(dbInstance)
 
-	providerID := createTestProvider(t, dbInstance)
+			providerID := test.providerID
+			if test.providerID == nil {
+				providerID = createTestProvider(t, dbInstance)
+			}
 
-	startTime := time.Now().Add(25 * time.Hour).Truncate(time.Hour)
-	endTime := startTime.Add(2 * time.Hour)
-	availability := schema.Availability{
-		StartTime: &startTime,
-		EndTime:   &endTime,
+			availability := schema.Availability{
+				StartTime:  &test.startTime,
+				EndTime:    &test.endTime,
+				ProviderId: providerID,
+			}
+
+			reqBody, err := json.Marshal(availability)
+			require.NoError(t, err)
+
+			req, err := http.NewRequest(http.MethodPost, "/providers/availability", bytes.NewBuffer(reqBody))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, test.statusCode, w.Code)
+			var response map[string]string
+			err = json.Unmarshal(w.Body.Bytes(), &response)
+			require.NoError(t, err)
+			require.Equal(t, test.expected.message, response[test.expected.key])
+
+			if test.expected.key == "message" {
+				// Verify that availability slots were added to the database
+				var count int
+				err = dbInstance.Conn.QueryRow(`
+				SELECT COUNT(*) FROM availability WHERE provider_id = $1
+			`, providerID.String()).Scan(&count)
+				require.NoError(t, err)
+				expectedSlots := utils.GenerateTimeSlots(test.startTime, test.endTime, db.GetAvailabilityInterval())
+				require.Equal(t, len(expectedSlots), count)
+			}
+		})
 	}
 
-	reqBody, err := json.Marshal(availability)
-	require.NoError(t, err)
-
-	req, err := http.NewRequest(http.MethodPost, "/providers/"+providerID.String()+"/availability", bytes.NewBuffer(reqBody))
-	require.NoError(t, err)
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	require.Equal(t, http.StatusCreated, w.Code)
-	var response map[string]string
-	err = json.Unmarshal(w.Body.Bytes(), &response)
-	require.NoError(t, err)
-	require.Equal(t, "Availability added", response["message"])
-
-	// Verify that availability slots were added to the database
-	var count int
-	err = dbInstance.Conn.QueryRow(`
-        SELECT COUNT(*) FROM availability WHERE provider_id = $1
-    `, providerID.String()).Scan(&count)
-	require.NoError(t, err)
-	expectedSlots := utils.GenerateTimeSlots(startTime, endTime, db.GetAvailabilityInterval())
-	require.Equal(t, len(expectedSlots), count)
-}
-
-func TestPostProvidersProviderIdAvailability_InvalidProviderId(t *testing.T) {
-	t.Parallel()
-	dbInstance := startTestDatabase(t)
-	defer dbInstance.Conn.Close()
-
-	router := setupTestServer(dbInstance)
-
-	createTestProvider(t, dbInstance)
-
-	startTime := time.Now().Add(25 * time.Hour).Truncate(time.Hour)
-	endTime := startTime.Add(2 * time.Hour)
-	availability := schema.Availability{
-		StartTime: &startTime,
-		EndTime:   &endTime,
-	}
-
-	reqBody, err := json.Marshal(availability)
-	require.NoError(t, err)
-
-	req, err := http.NewRequest(http.MethodPost, "/providers/"+uuid.NewString()+"/availability", bytes.NewBuffer(reqBody))
-	require.NoError(t, err)
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	require.Equal(t, http.StatusInternalServerError, w.Code)
-	var response map[string]string
-	err = json.Unmarshal(w.Body.Bytes(), &response)
-	require.NoError(t, err)
-	require.Equal(t, "Failed to add availability", response["error"])
 }
 
 func TestGetAppointments(t *testing.T) {
@@ -468,39 +491,6 @@ func TestPostAppointmentsAppointmentIdConfirm_NonExistent(t *testing.T) {
 	err = json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 	require.Equal(t, "Appointment not found or may have expired", response["error"])
-}
-
-func TestPostProvidersProviderIdAvailability_InvalidTimeRange(t *testing.T) {
-	t.Parallel()
-	dbInstance := startTestDatabase(t)
-	defer dbInstance.Conn.Close()
-	router := setupTestServer(dbInstance)
-
-	providerID := createTestProvider(t, dbInstance)
-
-	// Prepare the request body with invalid time range (end time before start time)
-	startTime := time.Now().Add(24 * time.Hour).Truncate(time.Minute)
-	endTime := startTime.Add(-2 * time.Hour) // End time is before start time
-	availability := schema.Availability{
-		StartTime: &startTime,
-		EndTime:   &endTime,
-	}
-
-	reqBody, err := json.Marshal(availability)
-	require.NoError(t, err)
-
-	req, err := http.NewRequest(http.MethodPost, "/providers/"+providerID.String()+"/availability", bytes.NewBuffer(reqBody))
-	require.NoError(t, err)
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	require.Equal(t, http.StatusBadRequest, w.Code)
-	var response map[string]string
-	err = json.Unmarshal(w.Body.Bytes(), &response)
-	require.NoError(t, err)
-	require.Equal(t, "End time must be after start time and at least 15 minutes apart", response["error"])
 }
 
 func TestConfirmAppointment_ExpiredReservation(t *testing.T) {

@@ -47,7 +47,6 @@ type AppointmentStatus string
 // Availability defines model for Availability.
 type Availability struct {
 	EndTime    *time.Time          `json:"end_time,omitempty"`
-	Id         *openapi_types.UUID `json:"id,omitempty"`
 	ProviderId *openapi_types.UUID `json:"provider_id,omitempty"`
 	StartTime  *time.Time          `json:"start_time,omitempty"`
 }
@@ -89,8 +88,8 @@ type PostAppointmentsJSONBody struct {
 // PostAppointmentsJSONRequestBody defines body for PostAppointments for application/json ContentType.
 type PostAppointmentsJSONRequestBody PostAppointmentsJSONBody
 
-// PostProvidersProviderIdAvailabilityJSONRequestBody defines body for PostProvidersProviderIdAvailability for application/json ContentType.
-type PostProvidersProviderIdAvailabilityJSONRequestBody = Availability
+// PostProvidersAvailabilityJSONRequestBody defines body for PostProvidersAvailability for application/json ContentType.
+type PostProvidersAvailabilityJSONRequestBody = Availability
 
 // PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
 type PostUsersJSONRequestBody = CreateUserRequest
@@ -107,8 +106,8 @@ type ServerInterface interface {
 	// (POST /appointments/{appointmentId}/confirm)
 	PostAppointmentsAppointmentIdConfirm(c *gin.Context, appointmentId openapi_types.UUID)
 	// Submit provider availability
-	// (POST /providers/{providerId}/availability)
-	PostProvidersProviderIdAvailability(c *gin.Context, providerId openapi_types.UUID)
+	// (POST /providers/availability)
+	PostProvidersAvailability(c *gin.Context)
 	// Create a new user (client or provider)
 	// (POST /users)
 	PostUsers(c *gin.Context)
@@ -197,19 +196,8 @@ func (siw *ServerInterfaceWrapper) PostAppointmentsAppointmentIdConfirm(c *gin.C
 	siw.Handler.PostAppointmentsAppointmentIdConfirm(c, appointmentId)
 }
 
-// PostProvidersProviderIdAvailability operation middleware
-func (siw *ServerInterfaceWrapper) PostProvidersProviderIdAvailability(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "providerId" -------------
-	var providerId openapi_types.UUID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "providerId", c.Param("providerId"), &providerId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter providerId: %w", err), http.StatusBadRequest)
-		return
-	}
+// PostProvidersAvailability operation middleware
+func (siw *ServerInterfaceWrapper) PostProvidersAvailability(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -218,7 +206,7 @@ func (siw *ServerInterfaceWrapper) PostProvidersProviderIdAvailability(c *gin.Co
 		}
 	}
 
-	siw.Handler.PostProvidersProviderIdAvailability(c, providerId)
+	siw.Handler.PostProvidersAvailability(c)
 }
 
 // PostUsers operation middleware
@@ -288,7 +276,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/appointments", wrapper.GetAppointments)
 	router.POST(options.BaseURL+"/appointments", wrapper.PostAppointments)
 	router.POST(options.BaseURL+"/appointments/:appointmentId/confirm", wrapper.PostAppointmentsAppointmentIdConfirm)
-	router.POST(options.BaseURL+"/providers/:providerId/availability", wrapper.PostProvidersProviderIdAvailability)
+	router.POST(options.BaseURL+"/providers/availability", wrapper.PostProvidersAvailability)
 	router.POST(options.BaseURL+"/users", wrapper.PostUsers)
 	router.GET(options.BaseURL+"/users/:userId", wrapper.GetUsersUserId)
 }

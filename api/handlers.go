@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -99,12 +100,23 @@ func (s *Server) PostAppointmentsAppointmentIdConfirm(c *gin.Context, appointmen
 	c.JSON(http.StatusOK, gin.H{"message": "Appointment confirmed"})
 }
 
+const (
+	// success constants
+	postProvidersAvailabilityAdded string = "Availability added"
+
+	// failure constants
+	postProvidersAvailabilityFailToAdd        string = "Failed to add availability"
+	postProvidersAvailabilityInvalidBody      string = "Invalid request body"
+	postProvidersAvailabilityInvalidTimeRange string = "End time must be later than start time and at least 15 minutes apart"
+)
+
 //nolint:revive
-func (s *Server) PostProvidersProviderIdAvailability(c *gin.Context, providerId openapi_types.UUID) {
+func (s *Server) PostProvidersAvailability(c *gin.Context) {
 	var availability schema.Availability
 
 	if err := c.ShouldBindJSON(&availability); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		log.Println("error parsing body: ", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": postProvidersAvailabilityInvalidBody})
 		return
 	}
 
@@ -114,7 +126,7 @@ func (s *Server) PostProvidersProviderIdAvailability(c *gin.Context, providerId 
 
 	// Validate time range
 	if endTime.Before(startTime) || !areAtLeastTheIntervalApart(startTime, endTime) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "End time must be after start time and at least 15 minutes apart"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": postProvidersAvailabilityInvalidTimeRange})
 		return
 	}
 
@@ -122,13 +134,14 @@ func (s *Server) PostProvidersProviderIdAvailability(c *gin.Context, providerId 
 	slots := utils.GenerateTimeSlots(startTime, endTime, db.GetAvailabilityInterval())
 
 	// Save availability slots to the database
-	err := s.DB.AddAvailability(providerId, slots)
+	err := s.DB.AddAvailability(*availability.ProviderId, slots)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add availability"})
+		log.Println("error adding availability: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": postProvidersAvailabilityFailToAdd})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Availability added"})
+	c.JSON(http.StatusCreated, gin.H{"message": postProvidersAvailabilityAdded})
 }
 
 // Round up to the nearest 15-minute interval

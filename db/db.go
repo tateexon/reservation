@@ -14,7 +14,10 @@ import (
 	"github.com/tateexon/reservation/utils"
 )
 
-const availabilityInterval = 15 * time.Minute
+const (
+	availabilityInterval        = 15 * time.Minute
+	AppointmentGetFormat string = "2006-01-02"
+)
 
 var avInterval time.Duration
 
@@ -46,6 +49,8 @@ func GetAvailabilityInterval() time.Duration {
 	return avInterval
 
 }
+
+var ErrGetAvailableAppointmentsNoneFound = errors.New("no appointments found on this date")
 
 func (db *Database) GetAvailableAppointments(providerID *types.UUID, date *types.Date) ([]schema.Appointment, error) {
 	var appointments []schema.Appointment
@@ -111,6 +116,10 @@ func (db *Database) GetAvailableAppointments(providerID *types.UUID, date *types
 		return nil, err
 	}
 
+	if len(appointments) == 0 {
+		return nil, ErrGetAvailableAppointmentsNoneFound
+	}
+
 	return appointments, nil
 }
 
@@ -148,9 +157,7 @@ func (db *Database) isSlotAvailable(providerID *types.UUID, startTime *time.Time
 	return count > 0, nil
 }
 
-var (
-	ErrReserveAppointmentSlotNotAvailable = errors.New("slot not available")
-)
+var ErrReserveAppointmentSlotNotAvailable = errors.New("slot not available")
 
 func (db *Database) ReserveAppointment(clientID, providerID *types.UUID, startTime *time.Time) (*schema.Appointment, error) {
 	// First, check that the slot is still available

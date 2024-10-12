@@ -161,13 +161,14 @@ paths:
       parameters:
         - name: providerID
           in: query
-          required: false
+          required: true
           schema:
             type: string
             format: uuid
         - name: date
+          description: In the format YYYY-MM-DD
           in: query
-          required: false
+          required: true
           schema:
             type: string
             format: date

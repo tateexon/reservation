@@ -191,7 +191,11 @@ func TestGetAppointments(t *testing.T) {
 	slots := utils.GenerateTimeSlots(startTime, endTime, db.GetAvailabilityInterval())
 	addTestAvailability(t, dbInstance, providerID, slots)
 
-	req, err := http.NewRequest(http.MethodGet, "/appointments?providerId="+providerID.String(), nil)
+	filterDate := startTime.Format(db.AppointmentGetFormat)
+	fmt.Println(filterDate)
+
+	url := fmt.Sprintf("/appointments?providerID=%s&date=%s", providerID.String(), filterDate)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -199,21 +203,6 @@ func TestGetAppointments(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	var appointments []schema.Appointment
-	err = json.Unmarshal(w.Body.Bytes(), &appointments)
-	require.NoError(t, err)
-	require.Equal(t, 8, len(appointments))
-
-	filterDate := startTime.Format("2006-01-02")
-	fmt.Println(filterDate)
-
-	url := fmt.Sprintf("/appointments?providerId=%s&date=%s", providerID.String(), filterDate)
-	req, err = http.NewRequest(http.MethodGet, url, nil)
-	require.NoError(t, err)
-
-	w = httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	require.Equal(t, http.StatusOK, w.Code)
 	err = json.Unmarshal(w.Body.Bytes(), &appointments)
 	require.NoError(t, err)
 	require.Equal(t, 8, len(appointments))
@@ -240,11 +229,11 @@ func TestGetAppointments_WithDateFilter(t *testing.T) {
 	addTestAvailability(t, dbInstance, providerID, slots1)
 
 	// Define the date to filter
-	filterDate := startTime1.Format("2006-01-02") // YYYY-MM-DD format
+	filterDate := startTime1.Format(db.AppointmentGetFormat) // YYYY-MM-DD format
 	fmt.Println(filterDate)
 
 	// Create HTTP GET request with date filter
-	url := fmt.Sprintf("/appointments?providerId=%s&date=%s", providerID.String(), filterDate)
+	url := fmt.Sprintf("/appointments?providerID=%s&date=%s", providerID.String(), filterDate)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	require.NoError(t, err)
 

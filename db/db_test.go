@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -159,6 +160,27 @@ func TestGetAvailableAppointments(t *testing.T) {
 	appointments, err = dbInstance.GetAvailableAppointments(providerID, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(slots)-1, len(appointments))
+}
+
+func TestGetAvailableAppointments_NoneAvailable(t *testing.T) {
+	t.Parallel()
+	dbInstance := startTestDatabase(t)
+	defer dbInstance.Conn.Close()
+
+	providerID := createTestProvider(t, dbInstance)
+	startTime := time.Now().Add(24 * time.Hour).Truncate(time.Minute)
+	slots := utils.GenerateTimeSlots(startTime, startTime.Add(2*time.Hour), GetAvailabilityInterval())
+
+	addTestAvailability(t, dbInstance, providerID, slots)
+
+	filterDate := startTime.Add(5 * 24 * time.Hour).Format(AppointmentGetFormat) // YYYY-MM-DD format
+	filterTime, err := time.Parse(AppointmentGetFormat, filterDate)
+	require.NoError(t, err)
+
+	// No spots should be available
+	_, err = dbInstance.GetAvailableAppointments(providerID, &types.Date{Time: filterTime})
+	require.Error(t, err)
+	require.True(t, errors.Is(err, ErrGetAvailableAppointmentsNoneFound))
 }
 
 func TestReservationExpiryLogic(t *testing.T) {

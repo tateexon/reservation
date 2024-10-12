@@ -63,8 +63,10 @@ type Provider struct {
 
 // GetAppointmentsParams defines parameters for GetAppointments.
 type GetAppointmentsParams struct {
-	ProviderID *openapi_types.UUID `form:"providerID,omitempty" json:"providerID,omitempty"`
-	Date       *openapi_types.Date `form:"date,omitempty" json:"date,omitempty"`
+	ProviderID openapi_types.UUID `form:"providerID" json:"providerID"`
+
+	// Date In the format YYYY-MM-DD
+	Date openapi_types.Date `form:"date" json:"date"`
 }
 
 // PostAppointmentsJSONBody defines parameters for PostAppointments.
@@ -131,17 +133,31 @@ func (siw *ServerInterfaceWrapper) GetAppointments(c *gin.Context) {
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetAppointmentsParams
 
-	// ------------- Optional query parameter "providerID" -------------
+	// ------------- Required query parameter "providerID" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "providerID", c.Request.URL.Query(), &params.ProviderID)
+	if paramValue := c.Query("providerID"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument providerID is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "providerID", c.Request.URL.Query(), &params.ProviderID)
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter providerID: %w", err), http.StatusBadRequest)
 		return
 	}
 
-	// ------------- Optional query parameter "date" -------------
+	// ------------- Required query parameter "date" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "date", c.Request.URL.Query(), &params.Date)
+	if paramValue := c.Query("date"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument date is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "date", c.Request.URL.Query(), &params.Date)
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter date: %w", err), http.StatusBadRequest)
 		return

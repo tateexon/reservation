@@ -29,7 +29,7 @@ func (s *Server) GetAppointments(c *gin.Context, params schema.GetAppointmentsPa
 	date := params.Date
 
 	// Get available appointment slots from the database
-	slots, err := s.DB.GetAvailableAppointments(providerID, date)
+	slots, err := s.DB.GetAvailableAppointments(&providerID, &date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch appointments"})
 		return

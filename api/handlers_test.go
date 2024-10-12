@@ -312,7 +312,7 @@ func TestPostAppointments(t *testing.T) {
 	var appointment schema.Appointment
 	err = json.Unmarshal(w.Body.Bytes(), &appointment)
 	require.NoError(t, err)
-	require.Equal(t, schema.AppointmentStatus("reserved"), *appointment.Status)
+	require.Equal(t, schema.Reserved, *appointment.Status)
 
 	// Verify that the appointment was added to the database
 	var status string
@@ -320,7 +320,7 @@ func TestPostAppointments(t *testing.T) {
         SELECT status FROM appointments WHERE id = $1
     `, appointment.Id.String()).Scan(&status)
 	require.NoError(t, err)
-	require.Equal(t, "reserved", status)
+	require.Equal(t, string(schema.Reserved), status)
 }
 
 func TestPostAppointmentsAppointmentIdConfirm(t *testing.T) {
@@ -358,7 +358,7 @@ func TestPostAppointmentsAppointmentIdConfirm(t *testing.T) {
         SELECT status FROM appointments WHERE id = $1
     `, appointment.Id.String()).Scan(&status)
 	require.NoError(t, err)
-	require.Equal(t, "confirmed", status)
+	require.Equal(t, string(schema.Confirmed), status)
 }
 
 func TestPostAppointments_LessThan24HoursInAdvance(t *testing.T) {
@@ -400,7 +400,7 @@ func TestPostAppointments_LessThan24HoursInAdvance(t *testing.T) {
 	var response map[string]string
 	err = json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
-	require.Equal(t, "Reservations must be made at least 24 hours in advance", response["error"])
+	require.Equal(t, PostAppointmentsInvalidStartTime, response["error"])
 }
 
 func TestPostAppointments_SlotUnavailable(t *testing.T) {
@@ -462,7 +462,7 @@ func TestPostAppointments_SlotUnavailable(t *testing.T) {
 	var response map[string]string
 	err = json.Unmarshal(w2.Body.Bytes(), &response)
 	require.NoError(t, err)
-	require.Equal(t, "Slot is not available", response["error"])
+	require.Equal(t, PostAppointmentsUnavailableTimeSlot, response["error"])
 }
 
 func TestPostAppointmentsAppointmentIdConfirm_NonExistent(t *testing.T) {

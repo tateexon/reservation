@@ -38,6 +38,13 @@ func (s *Server) GetAppointments(c *gin.Context, params schema.GetAppointmentsPa
 	c.JSON(http.StatusOK, slots)
 }
 
+const (
+	PostAppointmentsUnavailableTimeSlot string = "Time slot not available"
+	PostAppointmentsInvalidID           string = "Invalid availability id"
+	PostAppointmentsInvalidStartTime    string = "Reservations must be made at least 24 hours in advance"
+	PostAppointmentsFailedToReserve     string = "Failed to reserve appointment"
+)
+
 func (s *Server) PostAppointments(c *gin.Context) {
 	var req schema.PostAppointmentsJSONRequestBody
 
@@ -49,31 +56,28 @@ func (s *Server) PostAppointments(c *gin.Context) {
 	// get appointment
 	startTime, err := s.DB.GetAppointmentStartTime(req.AvailabilityId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid availability id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": PostAppointmentsInvalidID})
 		return
 	}
 
 	// Business logic checks
 	if !s.isReservationAtLeast24HoursInAdvance(&startTime) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Reservations must be made at least 24 hours in advance"})
-		return
-	}
-
-	// Check if the slot is available
-	available, err := s.DB.IsSlotAvailable(req.ProviderId, &startTime)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check slot availability"})
-		return
-	}
-	if !available {
-		c.JSON(http.StatusConflict, gin.H{"error": "Slot is not available"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": PostAppointmentsInvalidStartTime})
 		return
 	}
 
 	// Reserve the appointment
 	appointment, err := s.DB.ReserveAppointment(req.ClientId, req.ProviderId, &startTime)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reserve appointment"})
+		switch {
+		case errors.Is(err, db.ErrReserveAppointmentSlotNotAvailable):
+			c.JSON(http.StatusConflict, gin.H{"error": PostAppointmentsUnavailableTimeSlot})
+			return
+		default:
+			log.Println("appointment reservation failure: ", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": PostAppointmentsFailedToReserve})
+		}
+
 		return
 	}
 

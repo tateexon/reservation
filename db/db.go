@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -147,29 +148,35 @@ func (db *Database) IsSlotAvailable(providerID *types.UUID, startTime *time.Time
 	return count > 0, nil
 }
 
-func (db *Database) ReserveAppointment(clientID, providerID *types.UUID, startTime *time.Time) (*schema.Appointment, error) {
-	// Insert new appointment with status 'reserved' and current timestamp
+var (
+	ErrReserveAppointmentSlotNotAvailable = errors.New("slot not available")
+)
 
+func (db *Database) ReserveAppointment(clientID, providerID *types.UUID, startTime *time.Time) (*schema.Appointment, error) {
 	// First, check that the slot is still available
 	available, err := db.IsSlotAvailable(providerID, startTime)
 	if err != nil {
 		return nil, err
 	}
 	if !available {
-		return nil, fmt.Errorf("slot is not available")
+		return nil, ErrReserveAppointmentSlotNotAvailable
 	}
 
 	endTime := startTime.Add(GetAvailabilityInterval())
-	appointmentID := uuid.New()
 
-	_, err = db.Conn.Exec(`
-		INSERT INTO appointments (id, client_id, provider_id, start_time, end_time, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, 'reserved', NOW(), NOW())
-		`, appointmentID, clientID.String(), providerID.String(), *startTime, endTime)
+	var appointmentID types.UUID
+
+	// Let the database generate the ID and return it
+	err = db.Conn.QueryRow(`
+		INSERT INTO appointments (client_id, provider_id, start_time, end_time, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		RETURNING id
+		`, clientID.String(), providerID.String(), *startTime, endTime, schema.Reserved).Scan(&appointmentID)
 	if err != nil {
 		return nil, err
 	}
-	status := schema.AppointmentStatus("reserved")
+
+	status := schema.Reserved
 	appointment := &schema.Appointment{
 		Id:         (*types.UUID)(&appointmentID),
 		ClientId:   clientID,

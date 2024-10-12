@@ -133,7 +133,7 @@ func TestConfirmAppointment(t *testing.T) {
         SELECT status FROM appointments WHERE id = $1
     `, appointment.Id.String()).Scan(&status)
 	require.NoError(t, err)
-	require.Equal(t, schema.Confirmed, status)
+	require.Equal(t, string(schema.Confirmed), status)
 }
 
 func TestGetAvailableAppointments(t *testing.T) {

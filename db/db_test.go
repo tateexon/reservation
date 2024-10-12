@@ -19,6 +19,8 @@ const (
 	password = "yourpassword"
 )
 
+// test helpers
+
 func startTestDatabase(t *testing.T) *Database {
 	ctx := context.Background()
 
@@ -34,31 +36,24 @@ func startTestDatabase(t *testing.T) *Database {
 	return dbInstance
 }
 
-// Helper functions to create test data
 func createTestProvider(t *testing.T, dbInstance *Database) *types.UUID {
-	providerID := uuid.New()
-	_, err := dbInstance.Conn.Exec(`
-        INSERT INTO users (id, name, email, role, created_at, updated_at)
-        VALUES ($1, $2, $3, 'provider', NOW(), NOW())
-    `, providerID, "Test Provider", fmt.Sprintf("provider-%s@example.com", providerID.String()))
+	user, err := dbInstance.CreateUser("Test Provider", fmt.Sprintf("provider-%s@example.com", uuid.NewString()), string(schema.UserRoleProvider))
 	require.NoError(t, err)
-	return (*types.UUID)(&providerID)
+	return user.Id
 }
 
-func createTestClient(t *testing.T, db *Database) *types.UUID {
-	clientID := uuid.New()
-	_, err := db.Conn.Exec(`
-        INSERT INTO users (id, name, email, role, created_at, updated_at)
-        VALUES ($1, $2, $3, 'client', NOW(), NOW())
-    `, clientID, "Test Client", fmt.Sprintf("client-%s@example.com", clientID.String()))
+func createTestClient(t *testing.T, dbInstance *Database) *types.UUID {
+	user, err := dbInstance.CreateUser("Test Client", fmt.Sprintf("client-%s@example.com", uuid.NewString()), string(schema.UserRoleClient))
 	require.NoError(t, err)
-	return (*types.UUID)(&clientID)
+	return user.Id
 }
 
 func addTestAvailability(t *testing.T, dbInstance *Database, providerID *types.UUID, slots []time.Time) {
 	err := dbInstance.AddAvailability(*providerID, slots)
 	require.NoError(t, err)
 }
+
+// tests
 
 func TestStartDatabase(t *testing.T) {
 	t.Parallel()
@@ -106,7 +101,7 @@ func TestReserveAppointment(t *testing.T) {
 	appointment, err := dbInstance.ReserveAppointment(clientID, providerID, &startTime)
 	require.NoError(t, err)
 	require.NotNil(t, appointment)
-	require.Equal(t, schema.AppointmentStatus("reserved"), *appointment.Status)
+	require.Equal(t, schema.AppointmentStatus(schema.Reserved), *appointment.Status)
 
 	// Attempt to reserve the same slot again
 	_, err = dbInstance.ReserveAppointment(clientID, providerID, &startTime)
@@ -138,7 +133,7 @@ func TestConfirmAppointment(t *testing.T) {
         SELECT status FROM appointments WHERE id = $1
     `, appointment.Id.String()).Scan(&status)
 	require.NoError(t, err)
-	require.Equal(t, "confirmed", status)
+	require.Equal(t, schema.Confirmed, status)
 }
 
 func TestGetAvailableAppointments(t *testing.T) {

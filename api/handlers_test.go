@@ -30,6 +30,8 @@ type expectedMessage struct {
 	message string
 }
 
+// test helpers
+
 func startTestDatabase(t *testing.T) *db.Database {
 	ctx := context.Background()
 
@@ -45,32 +47,6 @@ func startTestDatabase(t *testing.T) *db.Database {
 	return dbInstance
 }
 
-// Helper functions to create test data
-func createTestProvider(t *testing.T, dbInstance *db.Database) *types.UUID {
-	providerID := uuid.New()
-	_, err := dbInstance.Conn.Exec(`
-        INSERT INTO users (id, name, email, role, created_at, updated_at)
-        VALUES ($1, $2, $3, 'provider', NOW(), NOW())
-    `, providerID, "Test Provider", fmt.Sprintf("provider-%s@example.com", providerID.String()))
-	require.NoError(t, err)
-	return (*types.UUID)(&providerID)
-}
-
-func createTestClient(t *testing.T, db *db.Database) *types.UUID {
-	clientID := uuid.New()
-	_, err := db.Conn.Exec(`
-        INSERT INTO users (id, name, email, role, created_at, updated_at)
-        VALUES ($1, $2, $3, 'client', NOW(), NOW())
-    `, clientID, "Test Client", fmt.Sprintf("client-%s@example.com", clientID.String()))
-	require.NoError(t, err)
-	return (*types.UUID)(&clientID)
-}
-
-func addTestAvailability(t *testing.T, dbInstance *db.Database, providerID *types.UUID, slots []time.Time) {
-	err := dbInstance.AddAvailability(*providerID, slots)
-	require.NoError(t, err)
-}
-
 func setupTestServer(dbInstance *db.Database) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
@@ -80,6 +56,25 @@ func setupTestServer(dbInstance *db.Database) *gin.Engine {
 
 	return router
 }
+
+func createTestProvider(t *testing.T, dbInstance *db.Database) *types.UUID {
+	user, err := dbInstance.CreateUser("Test Provider", fmt.Sprintf("provider-%s@example.com", uuid.NewString()), string(schema.UserRoleProvider))
+	require.NoError(t, err)
+	return user.Id
+}
+
+func createTestClient(t *testing.T, dbInstance *db.Database) *types.UUID {
+	user, err := dbInstance.CreateUser("Test Client", fmt.Sprintf("client-%s@example.com", uuid.NewString()), string(schema.UserRoleClient))
+	require.NoError(t, err)
+	return user.Id
+}
+
+func addTestAvailability(t *testing.T, dbInstance *db.Database, providerID *types.UUID, slots []time.Time) {
+	err := dbInstance.AddAvailability(*providerID, slots)
+	require.NoError(t, err)
+}
+
+// tests
 
 func TestPostProvidersAvailability(t *testing.T) {
 	t.Parallel()
@@ -171,7 +166,6 @@ func TestPostProvidersAvailability(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestGetAppointments(t *testing.T) {

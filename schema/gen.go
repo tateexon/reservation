@@ -34,15 +34,15 @@ type AppointmentStatus string
 
 // Availability defines model for Availability.
 type Availability struct {
-	EndTime    *time.Time          `json:"end_time,omitempty"`
-	ProviderId *openapi_types.UUID `json:"provider_id,omitempty"`
-	StartTime  *time.Time          `json:"start_time,omitempty"`
+	EndTime    time.Time          `json:"end_time"`
+	ProviderId openapi_types.UUID `json:"provider_id"`
+	StartTime  time.Time          `json:"start_time"`
 }
 
 // Client defines model for Client.
 type Client struct {
-	Id   *openapi_types.UUID `json:"id,omitempty"`
-	Name *string             `json:"name,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
+	Name string             `json:"name"`
 }
 
 // CreateClientRequest defines model for CreateClientRequest.
@@ -57,8 +57,8 @@ type CreateProviderRequest struct {
 
 // Provider defines model for Provider.
 type Provider struct {
-	Id   *openapi_types.UUID `json:"id,omitempty"`
-	Name *string             `json:"name,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
+	Name string             `json:"name"`
 }
 
 // GetAppointmentsParams defines parameters for GetAppointments.

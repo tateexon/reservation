@@ -57,13 +57,13 @@ func setupTestServer(dbInstance *db.Database) *gin.Engine {
 	return router
 }
 
-func createTestProvider(t *testing.T, dbInstance *db.Database) *types.UUID {
+func createTestProvider(t *testing.T, dbInstance *db.Database) types.UUID {
 	user, err := dbInstance.CreateProvider("Test Provider")
 	require.NoError(t, err)
 	return user.Id
 }
 
-func createTestClient(t *testing.T, dbInstance *db.Database) *types.UUID {
+func createTestClient(t *testing.T, dbInstance *db.Database) types.UUID {
 	user, err := dbInstance.CreateClient("Test Client")
 	require.NoError(t, err)
 	return user.Id
@@ -129,13 +129,13 @@ func TestPostProvidersAvailability(t *testing.T) {
 
 			providerID := test.providerID
 			if test.providerID == nil {
-				providerID = createTestProvider(t, dbInstance)
+				providerID = utils.Ptr(createTestProvider(t, dbInstance))
 			}
 
 			availability := schema.Availability{
-				StartTime:  &test.startTime,
-				EndTime:    &test.endTime,
-				ProviderId: providerID,
+				StartTime:  test.startTime,
+				EndTime:    test.endTime,
+				ProviderId: *providerID,
 			}
 
 			reqBody, err := json.Marshal(availability)
@@ -189,7 +189,7 @@ func TestGetAppointments(t *testing.T) {
 	endTime := startTime.Add(2 * time.Hour)
 	fmt.Println(endTime)
 	slots := utils.GenerateTimeSlots(startTime, endTime, db.GetAvailabilityInterval())
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
 	filterDate := startTime.Format(db.AppointmentGetFormat)
 	fmt.Println(filterDate)
@@ -226,7 +226,7 @@ func TestGetAppointments_WithDateFilter(t *testing.T) {
 	endTime1 := date1.Add(17 * time.Hour) // 5 PM on date1
 	fmt.Println(endTime1)
 	slots1 := utils.GenerateTimeSlots(startTime1, endTime1, db.GetAvailabilityInterval())
-	addTestAvailability(t, dbInstance, providerID, slots1)
+	addTestAvailability(t, dbInstance, &providerID, slots1)
 
 	// Define the date to filter
 	filterDate := startTime1.Format(db.AppointmentGetFormat) // YYYY-MM-DD format
@@ -274,16 +274,16 @@ func TestPostAppointments(t *testing.T) {
 
 	startTime := time.Now().Add(25 * time.Hour).Truncate(time.Minute) // Ensure it's more than 24 hours in advance
 	slots := []time.Time{startTime}
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
-	appointments, err := dbInstance.GetAvailableAppointments(providerID, &types.Date{Time: startTime})
+	appointments, err := dbInstance.GetAvailableAppointments(&providerID, &types.Date{Time: startTime})
 	require.NoError(t, err)
 	require.True(t, len(appointments) > 0)
 
 	// Prepare the request body
 	appointmentReq := schema.PostAppointmentsJSONRequestBody{
-		ClientId:       clientID,
-		ProviderId:     providerID,
+		ClientId:       &clientID,
+		ProviderId:     &providerID,
 		AvailabilityId: appointments[0].Id,
 	}
 
@@ -325,8 +325,8 @@ func TestPostAppointmentsAppointmentIdConfirm(t *testing.T) {
 	// Add availability and reserve an appointment
 	startTime := time.Now().Add(25 * time.Hour).Truncate(time.Minute)
 	slots := []time.Time{startTime}
-	addTestAvailability(t, dbInstance, providerID, slots)
-	appointment, err := dbInstance.ReserveAppointment(clientID, providerID, &startTime)
+	addTestAvailability(t, dbInstance, &providerID, slots)
+	appointment, err := dbInstance.ReserveAppointment(&clientID, &providerID, &startTime)
 	require.NoError(t, err)
 
 	req, err := http.NewRequest(http.MethodPost, "/appointments/"+appointment.Id.String()+"/confirm", nil)
@@ -362,16 +362,16 @@ func TestPostAppointments_LessThan24HoursInAdvance(t *testing.T) {
 
 	startTime := time.Now().Add(2 * time.Hour).Truncate(time.Minute)
 	slots := []time.Time{startTime}
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
-	appointments, err := dbInstance.GetAvailableAppointments(providerID, &types.Date{Time: startTime})
+	appointments, err := dbInstance.GetAvailableAppointments(&providerID, &types.Date{Time: startTime})
 	require.NoError(t, err)
 	require.True(t, len(appointments) > 0)
 
 	// Prepare the request body
 	appointmentReq := schema.PostAppointmentsJSONRequestBody{
-		ClientId:       clientID,
-		ProviderId:     providerID,
+		ClientId:       &clientID,
+		ProviderId:     &providerID,
 		AvailabilityId: appointments[0].Id,
 	}
 
@@ -404,16 +404,16 @@ func TestPostAppointments_SlotUnavailable(t *testing.T) {
 
 	startTime := time.Now().Add(25 * time.Hour).Truncate(time.Minute)
 	slots := []time.Time{startTime}
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
-	appointments, err := dbInstance.GetAvailableAppointments(providerID, &types.Date{Time: startTime})
+	appointments, err := dbInstance.GetAvailableAppointments(&providerID, &types.Date{Time: startTime})
 	require.NoError(t, err)
 	require.True(t, len(appointments) > 0)
 
 	// Prepare the request body for the first reservation
 	appointmentReq := schema.PostAppointmentsJSONRequestBody{
-		ClientId:       clientID,
-		ProviderId:     providerID,
+		ClientId:       &clientID,
+		ProviderId:     &providerID,
 		AvailabilityId: appointments[0].Id,
 	}
 	reqBody, err := json.Marshal(appointmentReq)
@@ -431,8 +431,8 @@ func TestPostAppointments_SlotUnavailable(t *testing.T) {
 
 	// Prepare the request body for the second reservation attempt
 	appointmentReq2 := schema.PostAppointmentsJSONRequestBody{
-		ClientId:       clientID2,
-		ProviderId:     providerID,
+		ClientId:       &clientID2,
+		ProviderId:     &providerID,
 		AvailabilityId: appointments[0].Id,
 	}
 	reqBody2, err := json.Marshal(appointmentReq2)
@@ -488,8 +488,8 @@ func TestConfirmAppointment_ExpiredReservation(t *testing.T) {
 	// Add availability and reserve an appointment
 	startTime := time.Now().Add(25 * time.Hour).Truncate(time.Minute)
 	slots := []time.Time{startTime}
-	addTestAvailability(t, dbInstance, providerID, slots)
-	appointment, err := dbInstance.ReserveAppointment(clientID, providerID, &startTime)
+	addTestAvailability(t, dbInstance, &providerID, slots)
+	appointment, err := dbInstance.ReserveAppointment(&clientID, &providerID, &startTime)
 	require.NoError(t, err)
 
 	// Simulate passage of time to expire the reservation

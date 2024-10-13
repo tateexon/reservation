@@ -122,9 +122,9 @@ func (s *Server) PostProvidersAvailability(c *gin.Context) {
 		return
 	}
 
-	startTime := roundUpToNearestInterval(*availability.StartTime)
+	startTime := roundUpToNearestInterval(availability.StartTime)
 	// add a microsecond to the end so the .Before will include it
-	endTime := roundDownToNearestInterval(*availability.EndTime).Add(time.Microsecond)
+	endTime := roundDownToNearestInterval(availability.EndTime).Add(time.Microsecond)
 
 	// Validate time range
 	if !areAtLeastTheIntervalApart(startTime, endTime) {
@@ -136,7 +136,7 @@ func (s *Server) PostProvidersAvailability(c *gin.Context) {
 	slots := utils.GenerateTimeSlots(startTime, endTime, db.GetAvailabilityInterval())
 
 	// Save availability slots to the database
-	err := s.DB.AddAvailability(*availability.ProviderId, slots)
+	err := s.DB.AddAvailability(availability.ProviderId, slots)
 	if err != nil {
 		log.Println("error adding availability: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": postProvidersAvailabilityFailToAdd})

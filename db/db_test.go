@@ -35,13 +35,13 @@ func startTestDatabase(t *testing.T) *Database {
 	return dbInstance
 }
 
-func createTestProvider(t *testing.T, dbInstance *Database) *types.UUID {
+func createTestProvider(t *testing.T, dbInstance *Database) types.UUID {
 	user, err := dbInstance.CreateProvider("Test Provider")
 	require.NoError(t, err)
 	return user.Id
 }
 
-func createTestClient(t *testing.T, dbInstance *Database) *types.UUID {
+func createTestClient(t *testing.T, dbInstance *Database) types.UUID {
 	provider, err := dbInstance.CreateClient("Test Client")
 	require.NoError(t, err)
 	return provider.Id
@@ -68,19 +68,19 @@ func TestIsSlotAvailable(t *testing.T) {
 	startTime := time.Now().Add(24 * time.Hour).Truncate(time.Minute)
 	slots := []time.Time{startTime}
 
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
-	available, err := dbInstance.isSlotAvailable(providerID, &startTime)
+	available, err := dbInstance.isSlotAvailable(&providerID, &startTime)
 	require.NoError(t, err)
 	require.True(t, available)
 
 	// Reserve the slot
 	clientID := createTestClient(t, dbInstance)
-	_, err = dbInstance.ReserveAppointment(clientID, providerID, &startTime)
+	_, err = dbInstance.ReserveAppointment(&clientID, &providerID, &startTime)
 	require.NoError(t, err)
 
 	// Check availability again
-	available, err = dbInstance.isSlotAvailable(providerID, &startTime)
+	available, err = dbInstance.isSlotAvailable(&providerID, &startTime)
 	require.NoError(t, err)
 	require.False(t, available)
 }
@@ -95,15 +95,15 @@ func TestReserveAppointment(t *testing.T) {
 	startTime := time.Now().Add(24 * time.Hour).Truncate(time.Minute)
 	slots := []time.Time{startTime}
 
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
-	appointment, err := dbInstance.ReserveAppointment(clientID, providerID, &startTime)
+	appointment, err := dbInstance.ReserveAppointment(&clientID, &providerID, &startTime)
 	require.NoError(t, err)
 	require.NotNil(t, appointment)
 	require.Equal(t, schema.AppointmentStatus(schema.Reserved), *appointment.Status)
 
 	// Attempt to reserve the same slot again
-	_, err = dbInstance.ReserveAppointment(clientID, providerID, &startTime)
+	_, err = dbInstance.ReserveAppointment(&clientID, &providerID, &startTime)
 	require.Error(t, err)
 }
 
@@ -117,9 +117,9 @@ func TestConfirmAppointment(t *testing.T) {
 	startTime := time.Now().Add(24 * time.Hour).Truncate(time.Minute)
 	slots := []time.Time{startTime}
 
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
-	appointment, err := dbInstance.ReserveAppointment(clientID, providerID, &startTime)
+	appointment, err := dbInstance.ReserveAppointment(&clientID, &providerID, &startTime)
 	require.NoError(t, err)
 
 	// Confirm the appointment
@@ -144,20 +144,20 @@ func TestGetAvailableAppointments(t *testing.T) {
 	startTime := time.Now().Add(24 * time.Hour).Truncate(time.Minute)
 	slots := utils.GenerateTimeSlots(startTime, startTime.Add(2*time.Hour), GetAvailabilityInterval())
 
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
 	// Initially, all slots should be available
-	appointments, err := dbInstance.GetAvailableAppointments(providerID, nil)
+	appointments, err := dbInstance.GetAvailableAppointments(&providerID, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(slots), len(appointments))
 
 	// Reserve a slot
 	clientID := createTestClient(t, dbInstance)
-	_, err = dbInstance.ReserveAppointment(clientID, providerID, &slots[0])
+	_, err = dbInstance.ReserveAppointment(&clientID, &providerID, &slots[0])
 	require.NoError(t, err)
 
 	// Now, one slot should be unavailable
-	appointments, err = dbInstance.GetAvailableAppointments(providerID, nil)
+	appointments, err = dbInstance.GetAvailableAppointments(&providerID, nil)
 	require.NoError(t, err)
 	require.Equal(t, len(slots)-1, len(appointments))
 }
@@ -171,14 +171,14 @@ func TestGetAvailableAppointments_NoneAvailable(t *testing.T) {
 	startTime := time.Now().Add(24 * time.Hour).Truncate(time.Minute)
 	slots := utils.GenerateTimeSlots(startTime, startTime.Add(2*time.Hour), GetAvailabilityInterval())
 
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
 	filterDate := startTime.Add(5 * 24 * time.Hour).Format(AppointmentGetFormat) // YYYY-MM-DD format
 	filterTime, err := time.Parse(AppointmentGetFormat, filterDate)
 	require.NoError(t, err)
 
 	// No spots should be available
-	_, err = dbInstance.GetAvailableAppointments(providerID, &types.Date{Time: filterTime})
+	_, err = dbInstance.GetAvailableAppointments(&providerID, &types.Date{Time: filterTime})
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrGetAvailableAppointmentsNoneFound))
 }
@@ -195,10 +195,10 @@ func TestReservationExpiryLogic(t *testing.T) {
 	// Add availability for the provider
 	startTime := time.Now().Add(25 * time.Hour).Truncate(time.Minute)
 	slots := []time.Time{startTime}
-	addTestAvailability(t, dbInstance, providerID, slots)
+	addTestAvailability(t, dbInstance, &providerID, slots)
 
 	// Reserve the appointment
-	appointment, err := dbInstance.ReserveAppointment(clientID, providerID, &startTime)
+	appointment, err := dbInstance.ReserveAppointment(&clientID, &providerID, &startTime)
 	require.NoError(t, err)
 	require.NotNil(t, appointment)
 
@@ -211,13 +211,13 @@ func TestReservationExpiryLogic(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check if the slot is now available
-	available, err := dbInstance.isSlotAvailable(providerID, &startTime)
+	available, err := dbInstance.isSlotAvailable(&providerID, &startTime)
 	require.NoError(t, err)
 	require.True(t, available, "Slot should be available after reservation has expired")
 
 	// Attempt to reserve the slot again
 	clientID2 := createTestClient(t, dbInstance)
-	appointment2, err := dbInstance.ReserveAppointment(clientID2, providerID, &startTime)
+	appointment2, err := dbInstance.ReserveAppointment(&clientID2, &providerID, &startTime)
 	require.NoError(t, err)
 	require.NotNil(t, appointment2)
 

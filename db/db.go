@@ -11,7 +11,6 @@ import (
 	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/oapi-codegen/runtime/types"
 	"github.com/tateexon/reservation/schema"
-	"github.com/tateexon/reservation/utils"
 )
 
 const (
@@ -279,8 +278,8 @@ func (db *Database) CreateClient(name string) (*schema.Client, error) {
 		return nil, err
 	}
 	return &schema.Client{
-		Id:   &clientID,
-		Name: utils.Ptr(name),
+		Id:   clientID,
+		Name: name,
 	}, err
 }
 
@@ -296,8 +295,8 @@ func (db *Database) CreateProvider(name string) (*schema.Provider, error) {
 		return nil, err
 	}
 	return &schema.Provider{
-		Id:   &providerID,
-		Name: utils.Ptr(name),
+		Id:   providerID,
+		Name: name,
 	}, err
 }
 
@@ -317,8 +316,8 @@ func (db *Database) GetClient(clientID types.UUID) (*schema.Client, error) {
 	}
 
 	client = schema.Client{
-		Id:   (*types.UUID)(&id),
-		Name: utils.Ptr(name),
+		Id:   (types.UUID)(id),
+		Name: name,
 	}
 
 	return &client, nil
@@ -340,8 +339,8 @@ func (db *Database) GetProvider(providerID types.UUID) (*schema.Provider, error)
 	}
 
 	provider = schema.Provider{
-		Id:   (*types.UUID)(&id),
-		Name: utils.Ptr(name),
+		Id:   (types.UUID)(id),
+		Name: name,
 	}
 
 	return &provider, nil

@@ -39,20 +39,20 @@ type Availability struct {
 	StartTime  time.Time          `json:"start_time"`
 }
 
-// Client defines model for Client.
-type Client struct {
-	Id   openapi_types.UUID `json:"id"`
-	Name string             `json:"name"`
-}
-
-// CreateClientRequest defines model for CreateClientRequest.
-type CreateClientRequest struct {
+// CreateHMClientRequest defines model for CreateHMClientRequest.
+type CreateHMClientRequest struct {
 	Name string `json:"name"`
 }
 
 // CreateProviderRequest defines model for CreateProviderRequest.
 type CreateProviderRequest struct {
 	Name string `json:"name"`
+}
+
+// HMClient defines model for HMClient.
+type HMClient struct {
+	Id   openapi_types.UUID `json:"id"`
+	Name string             `json:"name"`
 }
 
 // Provider defines model for Provider.
@@ -80,7 +80,7 @@ type PostAppointmentsJSONBody struct {
 type PostAppointmentsJSONRequestBody PostAppointmentsJSONBody
 
 // PostClientsJSONRequestBody defines body for PostClients for application/json ContentType.
-type PostClientsJSONRequestBody = CreateClientRequest
+type PostClientsJSONRequestBody = CreateHMClientRequest
 
 // PostProvidersJSONRequestBody defines body for PostProviders for application/json ContentType.
 type PostProvidersJSONRequestBody = CreateProviderRequest

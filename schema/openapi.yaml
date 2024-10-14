@@ -6,7 +6,7 @@ servers:
   - url: http://localhost:8080/
 components:
   schemas:
-    Client:
+    HMClient:
       type: object
       required:
         - id
@@ -18,7 +18,7 @@ components:
         name:
           type: string
 
-    CreateClientRequest:
+    CreateHMClientRequest:
       type: object
       required:
         - name
@@ -93,14 +93,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateClientRequest'
+              $ref: '#/components/schemas/CreateHMClientRequest'
       responses:
         '201':
           description: Client created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Client'
+                $ref: '#/components/schemas/HMClient'
   /clients/{clientID}:
     get:
       summary: Get client details
@@ -117,7 +117,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Client'
+                $ref: '#/components/schemas/HMClient'
 
   /providers:
     post:

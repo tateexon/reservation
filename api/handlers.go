@@ -166,7 +166,7 @@ func areAtLeastTheIntervalApart(t1, t2 time.Time) bool {
 }
 
 func (s *Server) PostClients(c *gin.Context) {
-	var req schema.CreateClientRequest
+	var req schema.CreateHMClientRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return

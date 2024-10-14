@@ -266,7 +266,7 @@ func (db *Database) providerExists(providerID types.UUID) error {
 	return err
 }
 
-func (db *Database) CreateClient(name string) (*schema.Client, error) {
+func (db *Database) CreateClient(name string) (*schema.HMClient, error) {
 	var clientID uuid.UUID
 
 	err := db.Conn.QueryRow(`
@@ -277,7 +277,7 @@ func (db *Database) CreateClient(name string) (*schema.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &schema.Client{
+	return &schema.HMClient{
 		Id:   clientID,
 		Name: name,
 	}, err
@@ -300,8 +300,8 @@ func (db *Database) CreateProvider(name string) (*schema.Provider, error) {
 	}, err
 }
 
-func (db *Database) GetClient(clientID types.UUID) (*schema.Client, error) {
-	var client schema.Client
+func (db *Database) GetClient(clientID types.UUID) (*schema.HMClient, error) {
+	var client schema.HMClient
 	var id uuid.UUID
 	var name string
 
@@ -315,7 +315,7 @@ func (db *Database) GetClient(clientID types.UUID) (*schema.Client, error) {
 		return nil, err
 	}
 
-	client = schema.Client{
+	client = schema.HMClient{
 		Id:   (types.UUID)(id),
 		Name: name,
 	}

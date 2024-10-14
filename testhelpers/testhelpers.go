@@ -1,4 +1,4 @@
-package utils
+package testhelpers
 
 import (
 	"context"
@@ -9,6 +9,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
+)
+
+const (
+	DBName   = "yourdb"
+	User     = "youruser"
+	Password = "yourpassword"
 )
 
 func getMigrations(t *testing.T) []string {
@@ -54,4 +60,9 @@ func StartTestPostgres(ctx context.Context, t *testing.T, dbname, user, password
 	})
 
 	return ctr
+}
+
+type ExpectedMessage struct {
+	Key     string
+	Message string
 }

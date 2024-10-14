@@ -3,12 +3,18 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create users table
-CREATE TABLE IF NOT EXISTS users (
+-- Create clients table
+CREATE TABLE IF NOT EXISTS clients (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('provider', 'client')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Create providers table
+CREATE TABLE IF NOT EXISTS providers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -22,9 +28,13 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Apply trigger to users table
+-- Apply trigger to clients table
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE
-ON users FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+ON clients FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Apply trigger to provided table
+CREATE TRIGGER update_providers_updated_at BEFORE UPDATE
+ON providers FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- Create availability table
 CREATE TABLE IF NOT EXISTS availability (
@@ -35,7 +45,7 @@ CREATE TABLE IF NOT EXISTS availability (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_start_before_end CHECK (start_time < end_time),
-    CONSTRAINT fk_provider FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_provider FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE
 );
 
 -- Add unique constraint on (provider_id, start_time)
@@ -57,8 +67,8 @@ CREATE TABLE IF NOT EXISTS appointments (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_appointment_start_before_end CHECK (start_time < end_time),
-    CONSTRAINT fk_appointment_client FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_appointment_provider FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_appointment_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    CONSTRAINT fk_appointment_provider FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE
 );
 
 -- Apply trigger to appointments table

@@ -14,7 +14,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var Version string
+
 func main() {
+	log.Println("Version:", Version)
 	user := os.Getenv("POSTGRES_USER")
 	if len(user) == 0 {
 		log.Fatal("POSTGRES_USER not set")

@@ -10,8 +10,11 @@ lint_fix:
 build:
 	go build -o reservation main.go
 
+build-release:
+	go build -ldflags="-s -w -X 'main.Version=$(version)'" -o reservation main.go
+
 build-docker:
-	docker build -t tateexon/reservation:latest .
+	docker build --build-arg VERSION=${VERSION} --build-arg RELEASE=${RELEASE} -t tateexon/reservation:latest .
 
 test:
 	go test -timeout 5m -cover -covermode=count ./...
@@ -22,7 +25,7 @@ typos:
 generate:
 	oapi-codegen -config ./schema/oapi-codegen-config.yaml ./schema/openapi.yaml
 
-run-local: build-docker
+start-local: build-docker
 	docker compose up -d
 
 stop-local:

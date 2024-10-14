@@ -2,11 +2,20 @@ FROM golang:1.23-bookworm AS builder
 WORKDIR /app
 COPY . .
 
-RUN go mod tidy && \
-    GOOS=linux GOARCH=amd64 go build -o /reservation
+ARG RELEASE=false
+ARG VERSION=1.0.0
+ARG GOOS=linux
+ARG GOARCH=amd64
+ARG CGO_ENABLED=0
 
+RUN make tidy && \
+    if [ "$RELEASE" = "true" ]; then \
+        make build-release version=${VERSION}; \
+    else \
+        make build; \
+    fi
 
-FROM debian:bookworm
+FROM scratch
 
 WORKDIR /
 
@@ -15,6 +24,6 @@ ENV POSTGRES_PASSWORD=yourpass
 ENV POSTGRES_URL=localhost:5432
 ENV POSTGRES_DB=yourdb
 
-COPY --from=builder /reservation /reservation
+COPY --from=builder /app/reservation /reservation
 
 ENTRYPOINT [ "/reservation" ]

@@ -9,13 +9,8 @@ import (
 	"github.com/oapi-codegen/runtime/types"
 	"github.com/stretchr/testify/require"
 	"github.com/tateexon/reservation/schema"
+	"github.com/tateexon/reservation/testhelpers"
 	"github.com/tateexon/reservation/utils"
-)
-
-const (
-	dbname   = "yourdb"
-	user     = "youruser"
-	password = "yourpassword"
 )
 
 // test helpers
@@ -23,7 +18,7 @@ const (
 func startTestDatabase(t *testing.T) *Database {
 	ctx := context.Background()
 
-	ctr := utils.StartTestPostgres(ctx, t, dbname, user, password)
+	ctr := testhelpers.StartTestPostgres(ctx, t, testhelpers.DBName, testhelpers.User, testhelpers.Password)
 
 	// explicitly set sslmode=disable because the container is not configured to use TLS
 	connStr, err := ctr.ConnectionString(ctx, "sslmode=disable")

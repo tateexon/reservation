@@ -16,26 +16,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tateexon/reservation/db"
 	"github.com/tateexon/reservation/schema"
+	"github.com/tateexon/reservation/testhelpers"
 	"github.com/tateexon/reservation/utils"
 )
-
-const (
-	dbname   = "yourdb"
-	user     = "youruser"
-	password = "yourpassword"
-)
-
-type expectedMessage struct {
-	key     string
-	message string
-}
 
 // test helpers
 
 func startTestDatabase(t *testing.T) *db.Database {
 	ctx := context.Background()
 
-	ctr := utils.StartTestPostgres(ctx, t, dbname, user, password)
+	ctr := testhelpers.StartTestPostgres(ctx, t, testhelpers.DBName, testhelpers.User, testhelpers.Password)
 
 	// explicitly set sslmode=disable because the container is not configured to use TLS
 	connStr, err := ctr.ConnectionString(ctx, "sslmode=disable")
@@ -85,16 +75,16 @@ func TestPostProvidersAvailability(t *testing.T) {
 		endTime    time.Time
 		providerID *types.UUID
 		statusCode int
-		expected   expectedMessage
+		expected   testhelpers.ExpectedMessage
 	}{
 		{
 			name:       "HappyPath",
 			startTime:  sTime,
 			endTime:    sTime.Add(2 * time.Hour),
 			statusCode: http.StatusCreated,
-			expected: expectedMessage{
-				key:     "message",
-				message: postProvidersAvailabilityAdded,
+			expected: testhelpers.ExpectedMessage{
+				Key:     "message",
+				Message: postProvidersAvailabilityAdded,
 			},
 		},
 		{
@@ -103,9 +93,9 @@ func TestPostProvidersAvailability(t *testing.T) {
 			endTime:    sTime.Add(2 * time.Hour),
 			providerID: utils.Ptr(uuid.New()),
 			statusCode: http.StatusInternalServerError,
-			expected: expectedMessage{
-				key:     "error",
-				message: postProvidersAvailabilityFailToAdd,
+			expected: testhelpers.ExpectedMessage{
+				Key:     "error",
+				Message: postProvidersAvailabilityFailToAdd,
 			},
 		},
 		{
@@ -113,9 +103,9 @@ func TestPostProvidersAvailability(t *testing.T) {
 			startTime:  sTime,
 			endTime:    sTime.Add(-2 * time.Hour),
 			statusCode: http.StatusBadRequest,
-			expected: expectedMessage{
-				key:     "error",
-				message: postProvidersAvailabilityInvalidTimeRange,
+			expected: testhelpers.ExpectedMessage{
+				Key:     "error",
+				Message: postProvidersAvailabilityInvalidTimeRange,
 			},
 		},
 	}
@@ -152,9 +142,9 @@ func TestPostProvidersAvailability(t *testing.T) {
 			var response map[string]string
 			err = json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
-			require.Equal(t, test.expected.message, response[test.expected.key])
+			require.Equal(t, test.expected.Message, response[test.expected.Key])
 
-			if test.expected.key == "message" {
+			if test.expected.Key == "message" {
 				// Verify that availability slots were added to the database
 				var count int
 				err = dbInstance.Conn.QueryRow(`
